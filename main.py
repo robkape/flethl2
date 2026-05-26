@@ -6,8 +6,8 @@ def main(page: ft.Page):
     db = Database()
     page.title = "GERENCIADOR DE COTAÇÕES | Criado por ROBSON BEZERRA | robsonb0819@gmail.com"
     page.theme_mode = ft.ThemeMode.LIGHT
-    page.window_width = 950
-    page.padding = 5
+    page.padding = 10
+    page.scroll = ft.ScrollMode.ALWAYS  # Scroll na página principal
     page.theme = ft.Theme(
         scrollbar_theme=ft.ScrollbarTheme(
             thumb_color=ft.Colors.BLUE_ACCENT,
@@ -17,11 +17,10 @@ def main(page: ft.Page):
         )
     )
 
-
-    # FUNÇÃO PARA FAZER BACKUP, USANDO O MÉTODO DA CLASSE DATABASE
+    # FUNÇÃO PARA FAZER BACKUP
     def fazer_backup(e):
         sucesso, mensagem = db.backup()
-        print(f"BACKUP - Sucesso: {sucesso}, Mensagem: {mensagem}")  # debug no terminal
+        print(f"BACKUP - Sucesso: {sucesso}, Mensagem: {mensagem}")
         page.snack_bar = ft.SnackBar(
             ft.Text(mensagem),
             bgcolor=ft.Colors.GREEN if sucesso else ft.Colors.RED,
@@ -30,10 +29,8 @@ def main(page: ft.Page):
         page.snack_bar.open = True
         page.update()
 
-
-    list_view = ft.ListView(expand=True, spacing=10)
-
-
+    # CONTAINER PARA LISTAGEM (responsivo)
+    list_container = ft.Column(spacing=10, scroll=ft.ScrollMode.ALWAYS, expand=True)
 
     # VARIÁVEIS PARA FILTROS E ORDENAÇÃO
     termo_busca_projeto = ""
@@ -43,9 +40,7 @@ def main(page: ft.Page):
     ordenacao_prazo = 0
     ordenacao_urgencia = 0
 
-
     # FILTROS
-
     def buscarPor_projeto(e):
         nonlocal termo_busca_projeto
         termo_busca_projeto = e.control.value.strip().lower()
@@ -146,9 +141,7 @@ def main(page: ft.Page):
         btn_ordenar_prazo.tooltip = "Ordenar por prazo final"
         renderizar_tudo()
 
-
     # DATE PICKER
-    
     def on_date_change(e):
         if e.control.value:
             input_prazo.value = e.control.value.strftime("%d/%m/%Y")
@@ -157,17 +150,10 @@ def main(page: ft.Page):
     pegarData = ft.DatePicker(on_change=on_date_change)
     page.overlay.append(pegarData)
 
-
-    #FUNÇÃO PARA O BOTÃO ABRIR CALENDÁRIO
-
     def abrir_calendario(e): 
         pegarData.open = True
         page.update()
 
-
-
-    #FUNÇÃO PARA ORDENAÇÃO DAS DATAS NO ELIF DE ORDENAÇÃO POR PRAZO (DATAS)
-    
     def converter_data(data_str):
         if not data_str:
             return None
@@ -176,10 +162,8 @@ def main(page: ft.Page):
         except ValueError:
             return None
     
-    
-
     def renderizar_tudo():
-        list_view.controls.clear()
+        list_container.controls.clear()
         todas = db.listar_cotacoes()
 
         cotacoes_filtradas = todas[:]
@@ -194,12 +178,10 @@ def main(page: ft.Page):
             cotacoes_filtradas.sort(key=lambda row: row[5], reverse=True)
         elif ordenacao_urgencia == 2:
             cotacoes_filtradas.sort(key=lambda row: row[5])
-        
         elif ordenacao_cliente == 1:
             cotacoes_filtradas.sort(key=lambda row: (row[2] or "").lower())
         elif ordenacao_cliente == 2:
             cotacoes_filtradas.sort(key=lambda row: (row[2] or "").lower(), reverse=True)
-        
         elif ordenacao_prazo == 1:
             cotacoes_filtradas.sort(key=lambda row: (
                 converter_data(row[8]) is None,
@@ -210,7 +192,6 @@ def main(page: ft.Page):
                 converter_data(row[8]) is None,
                 -converter_data(row[8]).toordinal() if converter_data(row[8]) else 0
             ))
-
 
         for row in cotacoes_filtradas:
             (cotacao_id, data_registro, cliente, projeto, so, urgencia, modal,
@@ -241,69 +222,60 @@ def main(page: ft.Page):
             observacao_texto = observacao if observacao else ""
             followup_texto = followup if followup else "Sem follow-up"
 
+            # Card responsivo usando Column
             card_content = ft.Column([
-                ft.Row([
-                    ft.Icon(ft.Icons.PERSON, size=16, color=ft.Colors.GREY_700),
-                    ft.Text(f"CLIENTE: {cliente_texto}", size=16, weight="bold", expand=True),
-                    ft.Icon(ft.Icons.BUSINESS, size=16, color=ft.Colors.BLUE_GREY_700),
-                    ft.Text(f"PROJETO: {projeto}", size=16, weight="bold", expand=True),
-                    ft.Icon(ft.Icons.CALENDAR_TODAY, size=14, color=ft.Colors.GREY_600),
-                    ft.Text(f"REGISTRADO EM: {data_registro}", size=13, color=ft.Colors.GREY_600),
-                    ft.IconButton(ft.Icons.EDIT, on_click=lambda e, tid=cotacao_id: abrirModalEdicao(tid)),
-                    ft.IconButton(ft.Icons.DELETE, icon_color="red", on_click=lambda e, tid=cotacao_id: deletar(tid)),
-                ]),
-                ft.Row([
-                    ft.Icon(ft.Icons.EVENT_AVAILABLE, size=16, color=urg_color),
-                    ft.Text(f"PRAZO FINAL: {prazo_texto}", size=14),
-                    ft.VerticalDivider(width=10, thickness=5),
-                    ft.Text(f"URGÊNCIA: {urg_texto}", size=12, color=urg_color),
-                    ft.VerticalDivider(width=10, thickness=5),
-                    ft.Text(f"DESCRIÇÃO: {descricao}", size=14, color=ft.Colors.BLACK),
-                    ft.VerticalDivider(width=10, thickness=5),
-                    ft.Icon(ft.Icons.ASSIGNMENT_LATE, size=14, color=ft.Colors.GREY_700),
-                    ft.Text(f"S.O.: {so_texto}", size=13, italic=True),
-                    ft.VerticalDivider(width=10, thickness=5),
-                    ft.Icon(modal_icon, size=16, color=ft.Colors.GREEN),
-                    ft.Text(f"MODAL: {modal_texto.capitalize()}", size=13),
-                ]),
-                ft.Row([
-                    ft.Icon(ft.Icons.NOTES, size=14, color=ft.Colors.BLUE_GREY_700),
-                    ft.Text(f"OBSERVAÇÃO: {observacao_texto}", size=13, width=1030)
-                ]),
+                # Linha 1: Cliente, Projeto, Data
+                ft.ResponsiveRow([
+                    ft.Column([ft.Row([ft.Icon(ft.Icons.PERSON, size=16), ft.Text(f"CLIENTE: {cliente_texto}", size=14, weight="bold")])], col={"xs": 12, "sm": 6, "md": 4}),
+                    ft.Column([ft.Row([ft.Icon(ft.Icons.BUSINESS, size=16), ft.Text(f"PROJETO: {projeto}", size=14, weight="bold")])], col={"xs": 12, "sm": 6, "md": 5}),
+                    ft.Column([ft.Row([ft.Icon(ft.Icons.CALENDAR_TODAY, size=14), ft.Text(f"REG: {data_registro}", size=12)]), 
+                              ft.Row([ft.IconButton(ft.Icons.EDIT, on_click=lambda e, tid=cotacao_id: abrirModalEdicao(tid), icon_size=18),
+                                    ft.IconButton(ft.Icons.DELETE, icon_color="red", on_click=lambda e, tid=cotacao_id: deletar(tid), icon_size=18)])], col={"xs": 12, "sm": 12, "md": 3}),
+                ], spacing=5),
+                
+                # Linha 2: Prazo, Urgência, Descrição, SO, Modal
+                ft.ResponsiveRow([
+                    ft.Column([ft.Row([ft.Icon(ft.Icons.EVENT_AVAILABLE, size=14, color=urg_color), ft.Text(f"PRAZO: {prazo_texto}", size=12)])], col={"xs": 12, "sm": 6, "md": 2}),
+                    ft.Column([ft.Text(f"URGÊNCIA: {urg_texto}", size=12, color=urg_color)], col={"xs": 12, "sm": 6, "md": 1}),
+                    ft.Column([ft.Text(f"DESCRIÇÃO: {descricao}", size=12)], col={"xs": 12, "sm": 12, "md": 5}),
+                    ft.Column([ft.Row([ft.Icon(ft.Icons.ASSIGNMENT_LATE, size=14), ft.Text(f"S.O.: {so_texto}", size=12, italic=True)])], col={"xs": 12, "sm": 6, "md": 2}),
+                    ft.Column([ft.Row([ft.Icon(modal_icon, size=14), ft.Text(f"{modal_texto.capitalize()}", size=12)])], col={"xs": 12, "sm": 6, "md": 2}),
+                ], spacing=5),
+                
+                # Observação
+                ft.Row([ft.Icon(ft.Icons.NOTES, size=14), ft.Text(f"OBS: {observacao_texto}", size=12)]),
+                
+                # Follow-up
                 ft.Container(
-                    height=80,
+                    height=60,
                     content=ft.Column(
                         scroll=ft.ScrollMode.ALWAYS,
-                        controls=[ft.Text(f"FOLLOW-UP:\n{followup_texto}", size=14, color=ft.Colors.GREY_800)]
+                        controls=[ft.Text(f"FOLLOW-UP:\n{followup_texto}", size=12)]
                     ),
-                    border=ft.Border.all(0.3, ft.Colors.BLUE_GREY_700),
+                    border=ft.Border.all(0.5, ft.Colors.GREY_500),
                     padding=5,
                 ),
-                ft.Row([
-                    ft.Icon(ft.Icons.PERSON, size=14, color=ft.Colors.GREY_700),
-                    ft.Text(f"CONTATO: {contato_texto}", size=13, expand=True),
-                ]),
-                ft.Row([
-                    ft.Icon(ft.Icons.LOCATION_ON, size=15, color=ft.Colors.GREY_700),
-                    ft.Text(f"ORIGEM: {origem_texto}", size=13, expand=True),
-                    ft.Icon(ft.Icons.STRAIGHTEN, size=15, color=ft.Colors.GREY_700),
-                    ft.Text(f"DESTINO: {destino_texto}", size=13, expand=True),
-                    ft.Icon(ft.Icons.LOCATION_ON, size=15, color=ft.Colors.GREY_700),
-                    ft.Text(f"DIMENSÕES: {dimensoes_texto}", size=13, expand=True),
-                    ft.Icon(ft.Icons.FITNESS_CENTER, size=15, color=ft.Colors.GREY_700),
-                    ft.Text(f"PESO: {peso_texto}", size=13),
-                ]),
+                
+                # Contato, Origem, Destino, Dimensões, Peso
+                ft.ResponsiveRow([
+                    ft.Column([ft.Row([ft.Icon(ft.Icons.PERSON, size=12), ft.Text(f"CONTATO: {contato_texto}", size=11)])], col={"xs": 12, "sm": 6, "md": 3}),
+                    ft.Column([ft.Row([ft.Icon(ft.Icons.LOCATION_ON, size=12), ft.Text(f"ORIGEM: {origem_texto}", size=11)])], col={"xs": 12, "sm": 6, "md": 2}),
+                    ft.Column([ft.Row([ft.Icon(ft.Icons.STRAIGHTEN, size=12), ft.Text(f"DESTINO: {destino_texto}", size=11)])], col={"xs": 12, "sm": 6, "md": 2}),
+                    ft.Column([ft.Row([ft.Icon(ft.Icons.LOCATION_ON, size=12), ft.Text(f"DIMENSÕES: {dimensoes_texto}", size=11)])], col={"xs": 12, "sm": 6, "md": 3}),
+                    ft.Column([ft.Row([ft.Icon(ft.Icons.FITNESS_CENTER, size=12), ft.Text(f"PESO: {peso_texto}", size=11)])], col={"xs": 12, "sm": 6, "md": 2}),
+                ], spacing=5),
             ])
-            list_view.controls.append(
+            
+            list_container.controls.append(
                 ft.Container(
                     content=card_content,
-                    bgcolor=ft.Colors.GREY_300,
-                    padding=10,
-                    border_radius=8
+                    bgcolor=ft.Colors.GREY_100,
+                    padding=8,
+                    border_radius=8,
+                    margin=ft.Margin.only(bottom=5)
                 )
             )
         page.update()
-
 
     def acrescentarNovo(e):
         if not input_projeto.value.strip():
@@ -363,11 +335,9 @@ def main(page: ft.Page):
 
         renderizar_tudo()
 
-
     def deletar(cotacao_id):
         db.deletar_cotacao(cotacao_id)
         renderizar_tudo()
-
 
     def abrirModalEdicao(cotacao_id):
         cotacoes = db.listar_cotacoes()
@@ -383,14 +353,14 @@ def main(page: ft.Page):
          u_descricao, u_prazo_final, u_contato, u_origem, u_destino, u_dimensoes,
          u_peso, u_observacao, u_followup) = cotacao
 
-        edit_cliente = ft.TextField(value=u_cliente or "", label="CLIENTE", width=300)
-        edit_projeto = ft.TextField(value=u_projeto, label="PROJETO")
-        edit_so = ft.TextField(value=u_so or "", label="S.O.")
+        edit_cliente = ft.TextField(value=u_cliente or "", label="CLIENTE", expand=True)
+        edit_projeto = ft.TextField(value=u_projeto, label="PROJETO", expand=True)
+        edit_so = ft.TextField(value=u_so or "", label="S.O.", expand=True)
         edit_urgencia = ft.Dropdown(
             label="Urgência",
             value="Baixa" if u_urgencia == 0 else "Alta",
             options=[ft.dropdown.Option("Baixa"), ft.dropdown.Option("Alta")],
-            width=150
+            expand=True
         )
         edit_modal = ft.Dropdown(
             label="MODAL",
@@ -403,23 +373,21 @@ def main(page: ft.Page):
                 ft.dropdown.Option("aéreo"),
                 ft.dropdown.Option("multimodal")
             ],
-            width=200
+            expand=True
         )
-        edit_descricao = ft.TextField(value=u_descricao, label="DESCRIÇÃO")
-        edit_prazo = ft.TextField(value=u_prazo_final or "", label="PRAZO (DD/MM/AAAA)")
-        edit_contato = ft.TextField(value=u_contato or "", label="CONTATO", width=450)
-        edit_origem = ft.TextField(value=u_origem or "", label="ORIGEM", width=300)
-        edit_destino = ft.TextField(value=u_destino or "", label="DESTINO", width=300)
-        edit_dimensoes = ft.TextField(value=u_dimensoes or "", label="DIMENSÕES | mm | (PEÇA)", width=600)
-        edit_peso = ft.TextField(value=u_peso or "", label="PESO (kg)", width=200)
-        edit_observacao = ft.TextField(value=u_observacao or "", label="OBSERVAÇÃO", width=1030)
+        edit_descricao = ft.TextField(value=u_descricao, label="DESCRIÇÃO", expand=True)
+        edit_prazo = ft.TextField(value=u_prazo_final or "", label="PRAZO (DD/MM/AAAA)", expand=True)
+        edit_contato = ft.TextField(value=u_contato or "", label="CONTATO", expand=True)
+        edit_origem = ft.TextField(value=u_origem or "", label="ORIGEM", expand=True)
+        edit_destino = ft.TextField(value=u_destino or "", label="DESTINO", expand=True)
+        edit_dimensoes = ft.TextField(value=u_dimensoes or "", label="DIMENSÕES | mm | (PEÇA)", expand=True)
+        edit_peso = ft.TextField(value=u_peso or "", label="PESO (kg)", expand=True)
+        edit_observacao = ft.TextField(value=u_observacao or "", label="OBSERVAÇÃO", expand=True)
         edit_followup = ft.TextField(value=u_followup or "", label="FOLLOW-UP", expand=True, multiline=True, min_lines=2, max_lines=3)
-
 
         def fechar_modal(e=None):
             modal.open = False
             page.update()
-
 
         def save_edit(e):
             if not edit_projeto.value or not edit_projeto.value.strip():
@@ -463,17 +431,39 @@ def main(page: ft.Page):
             fechar_modal()
             renderizar_tudo()
 
-
+        # Modal responsivo
         modal = ft.AlertDialog(
             title=ft.Text("EDITAR REGISTRO"),
-            content=ft.Column([
-                ft.Row([edit_cliente, edit_projeto, edit_so, edit_urgencia], spacing=5),
-                ft.Row([edit_modal, edit_descricao, edit_prazo], spacing=5),
-                ft.Row([edit_contato, edit_origem, edit_destino], spacing=5),
-                ft.Row([edit_dimensoes, edit_peso], spacing=5),
-                ft.Row([edit_observacao], spacing=5),
-                ft.Row([edit_followup], spacing=5),
-            ], tight=True, spacing=10, scroll=ft.ScrollMode.ALWAYS),
+            content=ft.Container(
+                content=ft.Column([
+                    ft.ResponsiveRow([
+                        ft.Column([edit_cliente], col={"xs": 12, "sm": 6, "md": 4}),
+                        ft.Column([edit_projeto], col={"xs": 12, "sm": 6, "md": 4}),
+                        ft.Column([edit_so], col={"xs": 12, "sm": 12, "md": 4}),
+                    ]),
+                    ft.ResponsiveRow([
+                        ft.Column([edit_urgencia], col={"xs": 12, "sm": 6, "md": 4}),
+                        ft.Column([edit_modal], col={"xs": 12, "sm": 6, "md": 4}),
+                        ft.Column([edit_descricao], col={"xs": 12, "sm": 12, "md": 4}),
+                    ]),
+                    ft.ResponsiveRow([
+                        ft.Column([edit_prazo], col={"xs": 12, "sm": 6, "md": 6}),
+                        ft.Column([edit_contato], col={"xs": 12, "sm": 6, "md": 6}),
+                    ]),
+                    ft.ResponsiveRow([
+                        ft.Column([edit_origem], col={"xs": 12, "sm": 6, "md": 4}),
+                        ft.Column([edit_destino], col={"xs": 12, "sm": 6, "md": 4}),
+                        ft.Column([edit_dimensoes], col={"xs": 12, "sm": 12, "md": 6}),
+                    ]),
+                    ft.ResponsiveRow([
+                        ft.Column([edit_peso], col={"xs": 12, "sm": 6, "md": 6}),
+                        ft.Column([edit_observacao], col={"xs": 12, "sm": 6, "md": 6}),
+                    ]),
+                    ft.Column([edit_followup]),
+                ], spacing=10, scroll=ft.ScrollMode.ALWAYS),
+                width=800,
+                height=500,
+            ),
             actions=[
                 ft.TextButton("Salvar", on_click=save_edit),
                 ft.TextButton("Cancelar", on_click=fechar_modal)
@@ -485,18 +475,16 @@ def main(page: ft.Page):
         modal.open = True
         page.update()
 
-
-    # --- INTERFACE DE CRIAÇÃO ---
-
-    input_cliente = ft.TextField(label="CLIENTE", width=300, max_length=30)
-    input_projeto = ft.TextField(label="PROJETO", width=400, max_length=40)
-    input_so = ft.TextField(label="S.O.", hint_text="0000.0000", width=200, max_length=12)
+    # --- INTERFACE DE CRIAÇÃO (Responsiva) ---
+    input_cliente = ft.TextField(label="CLIENTE", expand=True, max_length=30)
+    input_projeto = ft.TextField(label="PROJETO", expand=True, max_length=40)
+    input_so = ft.TextField(label="S.O.", hint_text="0000.0000", expand=True, max_length=12)
 
     dropdown_urgencia = ft.Dropdown(
         label="Urgência",
         value="Baixa",
         options=[ft.dropdown.Option("Baixa"), ft.dropdown.Option("Alta")],
-        width=120
+        expand=True
     )
     dropdown_modal = ft.Dropdown(
         label="MODAL",
@@ -509,103 +497,135 @@ def main(page: ft.Page):
             ft.dropdown.Option("aéreo"),
             ft.dropdown.Option("multimodal")
         ],
-        width=200,
+        expand=True,
     )
-    input_descricao = ft.TextField(label="DESCRIÇÃO", width=500, max_length=50)
-    input_prazo = ft.TextField(label="PRAZO FINAL", width=150, read_only=True)
-    input_contato = ft.TextField(label="CONTATO", width=540, max_length=50, hint_text="Nome / Telefone / email")
-    input_origem = ft.TextField(label="ORIGEM", width=300, max_length=30)
-    input_destino = ft.TextField(label="DESTINO", width=300, max_length=30)
-    input_dimensoes = ft.TextField(label="DIMENSÕES | mm | (PEÇA)", width=410, max_length=40, hint_text="COMPR x LARG x ALT (PEÇA)")
-    input_peso = ft.TextField(label="PESO (kg)", width=220, max_length=20)
-    input_observacao = ft.TextField(label="OBSERVAÇÃO", width=1030, max_length=125)
+    input_descricao = ft.TextField(label="DESCRIÇÃO", expand=True, max_length=50)
+    input_prazo = ft.TextField(label="PRAZO FINAL", expand=True, read_only=True)
+    input_contato = ft.TextField(label="CONTATO", expand=True, max_length=50, hint_text="Nome / Telefone / email")
+    input_origem = ft.TextField(label="ORIGEM", expand=True, max_length=30)
+    input_destino = ft.TextField(label="DESTINO", expand=True, max_length=30)
+    input_dimensoes = ft.TextField(label="DIMENSÕES | mm | (PEÇA)", expand=True, max_length=40, hint_text="COMPR x LARG x ALT (PEÇA)")
+    input_peso = ft.TextField(label="PESO (kg)", expand=True, max_length=20)
+    input_observacao = ft.TextField(label="OBSERVAÇÃO", expand=True, max_length=125)
     input_followup = ft.TextField(label="FOLLOW-UP", expand=True, multiline=True, min_lines=2, max_lines=2, max_length=2000)
 
     btn_calendario = ft.IconButton(icon=ft.Icons.CALENDAR_MONTH, on_click=abrir_calendario)
     btn_add = ft.FloatingActionButton(icon=ft.Icons.ADD, on_click=acrescentarNovo)
 
-
-
-    # FILTROS
-
+    # FILTROS (Responsivos)
     input_busca_projeto = ft.TextField(
-        label="Buscar por PROJETO",
-        width=200,
-        hint_text="Digite o nome do projeto",
+        label="Buscar PROJETO",
+        hint_text="Digite o nome",
         on_change=buscarPor_projeto,
         prefix_icon=ft.Icons.SEARCH,
-        fill_color=ft.Colors.GREY_200
+        fill_color=ft.Colors.GREY_200,
+        expand=True
     )
     input_busca_so = ft.TextField(
-        label="Buscar por S.O.",
-        width=180,
+        label="Buscar S.O.",
         hint_text="Nº do S.O.",
         on_change=buscarPor_so,
         prefix_icon=ft.Icons.SEARCH,
-        fill_color=ft.Colors.GREY_200
+        fill_color=ft.Colors.GREY_200,
+        expand=True
     )
     input_busca_cliente = ft.TextField(
-        label="Buscar por CLIENTE",
-        width=200,
-        hint_text="Digite o nome do cliente",
+        label="Buscar CLIENTE",
+        hint_text="Digite o nome",
         on_change=buscarPor_cliente,
         prefix_icon=ft.Icons.SEARCH,
-        fill_color=ft.Colors.GREY_200
+        fill_color=ft.Colors.GREY_200,
+        expand=True
     )
     btn_limpar_filtros = ft.Button(
-        "Limpar Filtros",
+        "Limpar",
         icon=ft.Icons.CLEAR,
         on_click=limpar_filtros,
-        bgcolor=ft.Colors.BLUE_GREY_100
+        bgcolor=ft.Colors.BLUE_GREY_100,
+        expand=True
     )
 
     btn_ordenar_cliente = ft.IconButton(
         icon=ft.Icons.SORT,
-        tooltip="Ordenar por cliente (A-Z)",
+        tooltip="Ordenar por cliente",
         on_click=alternar_ordenacao_cliente,
         icon_color=ft.Colors.BLUE_ACCENT,
     )
 
     btn_ordenar_prazo = ft.IconButton(
         icon=ft.Icons.SORT,
-        tooltip="Ordenar por prazo final",
+        tooltip="Ordenar por prazo",
         on_click=alternar_ordenacao_prazo,
         icon_color=ft.Colors.BLUE_ACCENT,
     )
 
     btn_ordenar_urgencia = ft.IconButton(
         icon=ft.Icons.SORT,
-        tooltip="Ordenar por urgência (Alta primeiro)",
+        tooltip="Ordenar por urgência",
         on_click=alternar_ordenacao_urgencia,
         icon_color=ft.Colors.BLUE_ACCENT,
     )
-
-    
-    # BOTÃO DE BACKUP
     
     btn_backup = ft.IconButton(
         icon=ft.Icons.BACKUP,
-        tooltip="Fazer backup do banco de dados no Desktop",
+        tooltip="Fazer backup",
         on_click=fazer_backup,
         icon_color=ft.Colors.GREEN,
     )
 
-
-    # LAYOUT
-
+    # LAYOUT PRINCIPAL (Totalmente responsivo)
     page.add(
-        ft.Text("GERENCIADOR DE COTAÇÕES", size=20, weight="bold"),
-        ft.Divider(),
-        ft.Row([input_cliente, input_projeto, input_so, dropdown_urgencia, dropdown_modal]),
-        ft.Row([input_descricao, input_prazo, btn_calendario, input_contato]),
-        ft.Row([input_origem, input_destino, input_dimensoes, input_peso]),
-        ft.Row([input_observacao]),
-        ft.Row([input_followup, btn_add]),
-        ft.Divider(),
-        ft.Row([input_busca_cliente, input_busca_projeto, input_busca_so, btn_limpar_filtros, btn_ordenar_cliente,
-                 btn_ordenar_prazo, btn_ordenar_urgencia, btn_backup]),
-        ft.Divider(),
-        list_view
+        ft.Container(
+            content=ft.Column([
+                ft.Text("GERENCIADOR DE COTAÇÕES", size=24, weight="bold", text_align=ft.TextAlign.CENTER),
+                ft.Divider(),
+                
+                # Formulário de cadastro responsivo
+                ft.ResponsiveRow([
+                    ft.Column([input_cliente], col={"xs": 12, "sm": 6, "md": 4, "lg": 3}),
+                    ft.Column([input_projeto], col={"xs": 12, "sm": 6, "md": 4, "lg": 3}),
+                    ft.Column([input_so], col={"xs": 12, "sm": 6, "md": 4, "lg": 2}),
+                    ft.Column([dropdown_urgencia], col={"xs": 12, "sm": 6, "md": 4, "lg": 2}),
+                    ft.Column([dropdown_modal], col={"xs": 12, "sm": 12, "md": 12, "lg": 2}),
+                ], spacing=8),
+                
+                ft.ResponsiveRow([
+                    ft.Column([input_descricao], col={"xs": 12, "sm": 8, "md": 8, "lg": 8}),
+                    ft.Column([ft.Row([input_prazo, btn_calendario], spacing=5)], col={"xs": 12, "sm": 4, "md": 4, "lg": 4}),
+                ], spacing=8),
+                
+                ft.ResponsiveRow([
+                    ft.Column([input_contato], col={"xs": 12, "sm": 6, "md": 4, "lg": 4}),
+                    ft.Column([input_origem], col={"xs": 12, "sm": 6, "md": 4, "lg": 3}),
+                    ft.Column([input_destino], col={"xs": 12, "sm": 6, "md": 4, "lg": 3}),
+                    ft.Column([input_dimensoes], col={"xs": 12, "sm": 6, "md": 4, "lg": 2}),
+                ], spacing=8),
+                
+                ft.ResponsiveRow([
+                    ft.Column([input_peso], col={"xs": 12, "sm": 6, "md": 4, "lg": 3}),
+                    ft.Column([input_observacao], col={"xs": 12, "sm": 6, "md": 8, "lg": 9}),
+                ], spacing=8),
+                
+                ft.Row([input_followup, btn_add], spacing=5),
+                ft.Divider(),
+                
+                # Filtros responsivos
+                ft.ResponsiveRow([
+                    ft.Column([input_busca_cliente], col={"xs": 12, "sm": 12, "md": 4}),
+                    ft.Column([input_busca_projeto], col={"xs": 12, "sm": 6, "md": 3}),
+                    ft.Column([input_busca_so], col={"xs": 12, "sm": 6, "md": 3}),
+                    ft.Column([btn_limpar_filtros], col={"xs": 12, "sm": 12, "md": 2}),
+                ], spacing=5),
+                
+                ft.Row([btn_ordenar_cliente, btn_ordenar_prazo, btn_ordenar_urgencia, btn_backup], spacing=5),
+                ft.Divider(),
+                
+                # Listagem responsiva
+                ft.Container(content=list_container, expand=True),
+            ], spacing=10),
+            expand=True,
+            padding=10
+        )
     )
 
     renderizar_tudo()
